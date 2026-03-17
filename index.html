@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スポーツ脳トレクイズ</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060910;
+  --surface: #0d1520;
+  --surface2: #131e2e;
+  --border: rgba(255,255,255,0.07);
+  --accent: #00c9ff;
+  --accent2: #f5a623;
+  --green: #00e676;
+  --red: #ff5252;
+  --text: #e8f0fe;
+  --muted: #5a7090;
+  --font-display: 'Bebas Neue', cursive;
+  --font-body: 'Noto Sans JP', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);overflow-x:hidden;}
+
+/* ── Background ── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,140,255,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,166,35,0.06) 0%, transparent 60%);
+  pointer-events:none;
+}
+.grid-bg{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(0,201,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,201,255,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+
+/* ── Layout ── */
+#app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;}
+.screen{width:100%;max-width:520px;padding:24px 16px;display:none;flex-direction:column;align-items:center;animation:fadeUp .35s ease both;}
+.screen.active{display:flex;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}
+
+/* ── HOME ── */
+.home-hero{text-align:center;padding:32px 0 24px;}
+.trophy{font-size:72px;display:block;animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.app-title{font-family:var(--font-display);font-size:52px;letter-spacing:4px;color:#fff;line-height:1;margin:12px 0 4px;}
+.app-title span{color:var(--accent);}
+.app-sub{font-size:13px;color:var(--muted);letter-spacing:.05em;}
+
+.stats-row{display:flex;gap:12px;width:100%;margin:20px 0;}
+.stat-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.stat-val{font-family:var(--font-display);font-size:32px;color:var(--accent);}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.stage-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+.stage-card{
+  background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
+  padding:16px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;
+}
+.stage-card:not(.locked):hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,201,255,0.15);}
+.stage-card.locked{opacity:.4;cursor:not-allowed;}
+.stage-card.cleared{border-color:rgba(0,230,118,0.4);}
+.stage-emoji{font-size:28px;display:block;margin-bottom:8px;}
+.stage-name{font-size:13px;font-weight:700;color:#fff;margin-bottom:6px;}
+.diff-dots{display:flex;gap:3px;margin-bottom:6px;}
+.diff-dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+.diff-dot.on{background:var(--accent2);}
+.stage-stars{display:flex;gap:2px;}
+.s-star{font-size:14px;color:#2a3a4a;}
+.s-star.lit{color:#f5a623;}
+.lock-icon{position:absolute;top:10px;right:10px;font-size:16px;color:var(--muted);}
+.cleared-badge{position:absolute;top:8px;right:8px;background:rgba(0,230,118,0.15);border:1px solid rgba(0,230,118,0.3);color:var(--green);font-size:9px;font-weight:700;padding:2px 6px;border-radius:20px;letter-spacing:.05em;}
+
+/* ── QUIZ ── */
+.quiz-top{width:100%;margin-bottom:20px;}
+.quiz-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.quiz-stage-name{font-size:12px;color:var(--muted);letter-spacing:.05em;}
+.quiz-score{font-family:var(--font-display);font-size:22px;color:var(--accent2);}
+.progress-bar{width:100%;height:5px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),#0080ff);transition:width .4s ease;}
+.q-counter{font-size:11px;color:var(--muted);text-align:right;margin-top:5px;}
+
+.question-box{
+  width:100%;background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:24px 20px;margin-bottom:20px;min-height:100px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  position:relative;overflow:hidden;
+}
+.question-box::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.q-text{font-size:17px;font-weight:700;line-height:1.6;color:#fff;}
+
+.choices{display:flex;flex-direction:column;gap:10px;width:100%;}
+.choice-btn{
+  width:100%;background:var(--surface);border:1.5px solid var(--border);
+  border-radius:12px;padding:15px 18px;font-size:14px;font-weight:500;
+  color:var(--text);cursor:pointer;transition:all .15s;text-align:left;
+  font-family:var(--font-body);display:flex;align-items:center;gap:10px;
+}
+.choice-btn:not(:disabled):hover{border-color:var(--accent);background:rgba(0,201,255,0.06);}
+.choice-btn .choice-label{
+  width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,0.07);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  flex-shrink:0;color:var(--muted);
+}
+.choice-btn.correct{border-color:var(--green);background:rgba(0,230,118,0.08);color:var(--green);}
+.choice-btn.correct .choice-label{background:rgba(0,230,118,0.2);color:var(--green);}
+.choice-btn.wrong{border-color:var(--red);background:rgba(255,82,82,0.08);color:var(--red);}
+.choice-btn.wrong .choice-label{background:rgba(255,82,82,0.2);color:var(--red);}
+.choice-btn.dim{opacity:.35;}
+.choice-btn:disabled{cursor:default;}
+
+.explanation{
+  width:100%;border-radius:12px;padding:14px 16px;margin-top:10px;
+  font-size:12.5px;line-height:1.7;animation:fadeUp .3s ease;
+}
+.explanation.ok{background:rgba(0,230,118,0.07);border:1px solid rgba(0,230,118,0.2);color:#a0f0c0;}
+.explanation.ng{background:rgba(255,82,82,0.07);border:1px solid rgba(255,82,82,0.2);color:#ffaaaa;}
+.expl-head{font-weight:700;font-size:14px;margin-bottom:6px;}
+
+.next-btn{
+  width:100%;margin-top:14px;padding:16px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,var(--accent),#0080ff);
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:var(--font-body);transition:opacity .2s;letter-spacing:.02em;
+}
+.next-btn:hover{opacity:.88;}
+
+/* ── CLEAR ── */
+.clear-screen{text-align:center;padding:20px 0;}
+.clear-big{font-size:80px;animation:popIn .5s cubic-bezier(.17,.67,.27,1.4) both;}
+@keyframes popIn{from{transform:scale(0);}to{transform:scale(1);}}
+.clear-title{font-family:var(--font-display);font-size:48px;letter-spacing:3px;color:#fff;margin:12px 0 4px;}
+.clear-stage{font-size:14px;color:var(--muted);margin-bottom:24px;}
+.result-card{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:20px;}
+.result-row{display:flex;justify-content:space-around;}
+.result-item{text-align:center;}
+.result-num{font-family:var(--font-display);font-size:36px;}
+.result-num.good{color:var(--green);}
+.result-num.accent{color:var(--accent);}
+.result-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+.stars-row{display:flex;justify-content:center;gap:10px;margin:16px 0 24px;}
+.big-star{font-size:44px;transition:all .3s;filter:grayscale(1) brightness(.3);}
+.big-star.lit{filter:none;animation:starPop .4s cubic-bezier(.17,.67,.27,1.4) both;}
+@keyframes starPop{from{transform:scale(0) rotate(-30deg);}to{transform:scale(1) rotate(0);}}
+.clear-btns{display:flex;flex-direction:column;gap:10px;width:100%;}
+.btn-primary{padding:15px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--accent),#0080ff);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font-body);}
+.btn-secondary{padding:15px;border-radius:12px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;font-family:var(--font-body);transition:all .2s;}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── CONFETTI ── */
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:999;overflow:hidden;}
+.confetti-piece{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:confettiFall linear forwards;}
+@keyframes confettiFall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+<div id="app">
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="home-hero">
+      <span class="trophy">🏆</span>
+      <div class="app-title">SPORTS<span>QUIZ</span></div>
+      <div class="app-sub">スポーツ脳トレクイズ ／ 全6ステージ・60問</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-cleared">0</div>
+        <div class="stat-label">クリアステージ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-correct">0</div>
+        <div class="stat-label">累計正解数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-stars">0</div>
+        <div class="stat-label">獲得★</div>
+      </div>
+    </div>
+    <div class="stage-grid" id="stage-grid"></div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen" id="screen-quiz">
+    <div class="quiz-top">
+      <div class="quiz-meta">
+        <span class="quiz-stage-name" id="quiz-stage-name"></span>
+        <span class="quiz-score" id="quiz-score">0点</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="q-counter" id="q-counter"></div>
+    </div>
+    <div class="question-box"><div class="q-text" id="q-text"></div></div>
+    <div class="choices" id="choices"></div>
+    <div id="explanation"></div>
+    <button class="next-btn" id="next-btn" style="display:none" onclick="nextQuestion()"></button>
+  </div>
+
+  <!-- CLEAR -->
+  <div class="screen" id="screen-clear">
+    <div class="clear-screen">
+      <div class="clear-big" id="clear-emoji"></div>
+      <div class="clear-title" id="clear-title"></div>
+      <div class="clear-stage" id="clear-stage-name"></div>
+      <div class="result-card">
+        <div class="result-row">
+          <div class="result-item">
+            <div class="result-num good" id="res-score"></div>
+            <div class="result-lbl">正解数</div>
+          </div>
+          <div class="result-item">
+            <div class="result-num accent" id="res-rate"></div>
+            <div class="result-lbl">正答率</div>
+          </div>
+        </div>
+      </div>
+      <div class="stars-row" id="stars-row">
+        <div class="big-star" id="star0">⭐</div>
+        <div class="big-star" id="star1">⭐</div>
+        <div class="big-star" id="star2">⭐</div>
+      </div>
+      <div class="clear-btns">
+        <button class="btn-primary" onclick="goHome()">ステージ一覧へ</button>
+        <button class="btn-secondary" id="retry-btn" onclick="retryStage()">もう一度挑戦</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="confetti-wrap" id="confetti"></div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const STAGES = [
+  {
+    id:'s1', title:'サッカー基礎', emoji:'⚽', diff:1,
+    questions:[
+      {q:'サッカーの1チームの選手数は何人？',c:['9人','10人','11人','12人'],a:2,e:'サッカーは1チーム11人。フィールドプレーヤー10人＋ゴールキーパー1人で構成されます。'},
+      {q:'FIFAワールドカップは何年に1度開催される？',c:['2年','3年','4年','5年'],a:2,e:'ワールドカップは4年に1度。1930年ウルグアイで第1回大会が開催されました。'},
+      {q:'サッカーでPKとは何の略？',c:['パワーキック','ペナルティキック','プレイキック','ポイントキック'],a:1,e:'PKはペナルティキック（Penalty Kick）の略。ゴール前約11mの地点から蹴ります。'},
+      {q:'サッカーの試合時間（前後半合計）は？',c:['60分','80分','90分','100分'],a:2,e:'正規の試合時間は前後半各45分、合計90分。これにアディショナルタイムが加わります。'},
+      {q:'日本のJリーグが開幕した年は？',c:['1991年','1993年','1995年','1997年'],a:1,e:'Jリーグは1993年5月15日に開幕。ヴェルディ川崎対横浜マリノスが開幕戦でした。'},
+      {q:'イエローカード2枚で何になる？',c:['退場','警告のみ','PK','交代'],a:0,e:'1試合でイエローカード2枚→自動的にレッドカードとなり退場になります。'},
+      {q:'サッカーボールは何角形の組み合わせ？',c:['三角形と四角形','四角形と五角形','五角形と六角形','六角形と七角形'],a:2,e:'伝統的なボールは五角形（黒）と六角形（白）を組み合わせた32面体です。'},
+      {q:'ハットトリックとは1試合で何ゴール？',c:['2ゴール','3ゴール','4ゴール','5ゴール'],a:1,e:'1試合で同一選手が3ゴールを決めることをハットトリックといいます。'},
+      {q:'オフサイドは何人目のDFより前に出ると取られる？',c:['1人目','2人目','3人目','4人目'],a:1,e:'後方から2人目のディフェンダー（通常GKを含む）より前にいると適用されます。'},
+      {q:'2022年FIFAワールドカップの開催国は？',c:['ロシア','ブラジル','カタール','UAE'],a:2,e:'2022年W杯はカタールで開催。中東初・冬季開催という歴史的大会でした。'},
+    ]
+  },
+  {
+    id:'s2', title:'野球基礎', emoji:'⚾', diff:1,
+    questions:[
+      {q:'野球でスリーアウトになると何が起こる？',c:['試合終了','攻守交代','ペナルティ','得点'],a:1,e:'スリーアウトで攻守交代。3アウトを1イニングとし、9イニングで1試合です。'},
+      {q:'野球の塁（ベース）は全部で何個？',c:['3個','4個','5個','6個'],a:1,e:'1塁・2塁・3塁・本塁（ホームベース）の計4つのベースがあります。'},
+      {q:'ホームランを打った場合、何点入る（ランナーなし）？',c:['1点','2点','3点','4点'],a:0,e:'ランナーなしのホームランは1点。満塁ホームランは4点（グランドスラム）です。'},
+      {q:'日本プロ野球（NPB）の2つのリーグは？',c:['東・西リーグ','セ・パリーグ','日本・東京リーグ','太平洋・大西洋リーグ'],a:1,e:'NPBはセントラル・リーグ（セ）とパシフィック・リーグ（パ）の2リーグ制です。'},
+      {q:'ノーヒットノーランとは？',c:['ヒットもランも打たれた','ヒットなしで完封','9イニング全三振','HRなしで勝利'],a:1,e:'1試合を通じて相手にヒットを1本も許さずに完封することです。'},
+      {q:'フォアボール（四球）はボール何個で与えられる？',c:['3個','4個','5個','6個'],a:1,e:'4つのボール判定でバッターは1塁への出塁権を得ます。'},
+      {q:'甲子園で開催される全国大会の正式名称は？',c:['全国高校野球選手権大会','全国高校野球大会','日本高校野球選手権','全日本高校野球大会'],a:0,e:'「全国高等学校野球選手権大会」。毎年夏に兵庫県の甲子園球場で開催されます。'},
+      {q:'MLBのワールドシリーズはどのリーグ間の戦い？',c:['東地区と西地区','アメリカンとナショナルリーグ','北と南地区','メジャーとマイナー'],a:1,e:'アメリカンリーグとナショナルリーグの優勝チームが対戦するMLBの頂上決戦です。'},
+      {q:'サイクルヒットとは1試合で何を達成すること？',c:['4打席連続ヒット','単打・二塁打・三塁打・本塁打を各1本','満塁HR2本','全打席出塁'],a:1,e:'1試合で単打・二塁打・三塁打・本塁打をそれぞれ最低1本ずつ打つことです。'},
+      {q:'大谷翔平選手の2024年時点の所属チームは？',c:['NYヤンキース','LAドジャース','ボストンRS','LAエンゼルス'],a:1,e:'2024年からロサンゼルス・ドジャースに所属。2023年まではLAエンゼルスでした。'},
+    ]
+  },
+  {
+    id:'s3', title:'バスケットボール', emoji:'🏀', diff:2,
+    questions:[
+      {q:'バスケットボールのコート上の1チームの人数は？',c:['4人','5人','6人','7人'],a:1,e:'バスケットボールは1チーム5人でプレー。ベンチには最大7人の控えがいます。'},
+      {q:'NBAのゴールの高さは地面から何フィート？',c:['8フィート','9フィート','10フィート','11フィート'],a:2,e:'バスケのゴールの高さは10フィート（約3.05m）と定められています。'},
+      {q:'スリーポイントラインの外から決めたシュートは何点？',c:['1点','2点','3点','4点'],a:2,e:'スリーポイントライン外から成功すると3点。フリースローは1点、通常は2点です。'},
+      {q:'バスケットボールを考案したのは誰？',c:['マイケル・ジョーダン','ジェームズ・ネイスミス','コービー・ブライアント','ラリー・バード'],a:1,e:'1891年にカナダ人のジェームズ・ネイスミス博士がアメリカのYMCAで考案しました。'},
+      {q:'八村塁選手が最初に所属したNBAのチームは？',c:['GSウォリアーズ','ワシントン・ウィザーズ','LAレイカーズ','ダラス・マーベリックス'],a:1,e:'2019年NBAドラフトでワシントン・ウィザーズから1巡目9位で指名されました。'},
+      {q:'ドリブルせずに何歩歩くとトラベリングになる？',c:['1歩','2歩','3歩','4歩'],a:1,e:'ボールを持って2歩以上歩くとトラベリングの反則になります。'},
+      {q:'NBAのレギュラーシーズンは1チーム何試合？',c:['62試合','72試合','82試合','92試合'],a:2,e:'NBAのレギュラーシーズンは各チーム82試合で構成されています。'},
+      {q:'マイケル・ジョーダンが所属していたチームは？',c:['ボストン・セルティックス','シカゴ・ブルズ','LAレイカーズ','マイアミ・ヒート'],a:1,e:'マイケル・ジョーダンはシカゴ・ブルズで活躍し、6度のNBA優勝を果たしました。'},
+      {q:'ファウルが規定数を超えて退場になることを何という？',c:['レッドカード','ファウルアウト','エジェクション','ディスクォリファイ'],a:1,e:'NBAでは1試合6つのファウルでファウルアウトとなり退場です。'},
+      {q:'バスケットボールの試合時間（NBA）は？',c:['8分×4Q','10分×4Q','12分×4Q','24分×2H'],a:2,e:'NBAは1クォーター12分×4で合計48分。FIBA国際試合は10分×4で40分です。'},
+    ]
+  },
+  {
+    id:'s4', title:'テニス・卓球', emoji:'🎾', diff:2,
+    questions:[
+      {q:'テニスでサービスを2回連続ミスすると？',c:['警告','ダブルフォルト（失点）','サービスやり直し','ポイント×2'],a:1,e:'ダブルフォルトとなり相手に1ポイント入ります。'},
+      {q:'テニスの四大大会（グランドスラム）に含まれないのは？',c:['全豪オープン','ジャパンオープン','ウィンブルドン','全米オープン'],a:1,e:'グランドスラムは全豪・全仏・ウィンブルドン・全米の4大会です。'},
+      {q:'テニスで40-40の状態を何という？',c:['タイブレーク','デュース','アドバンテージ','マッチポイント'],a:1,e:'40-40をデュースといいます。デュースから2ポイント連続で取ったほうがゲームを取ります。'},
+      {q:'大坂なおみ選手が2019年に選択した国籍は？',c:['アメリカ','日本','カナダ','オーストラリア'],a:1,e:'大坂なおみ選手は2019年に日本国籍を選択しました。'},
+      {q:'卓球のボールの直径は何mm？',c:['38mm','40mm','42mm','44mm'],a:1,e:'2000年以降の国際公式球は直径40mm、重さ2.7gに統一されています。'},
+      {q:'卓球の試合は通常、1ゲーム何点先取？',c:['9点','11点','15点','21点'],a:1,e:'現在は11点先取制。2001年から国際試合で21点制→11点制に変更されました。'},
+      {q:'テニスのウィンブルドンのコートサーフェスは？',c:['ハードコート','クレーコート','グラスコート','カーペットコート'],a:2,e:'ウィンブルドンは天然芝（グラスコート）で行われる唯一のグランドスラムです。'},
+      {q:'卓球の「チキータ」とは？',c:['バナナ状の曲がる強打','バックハンドの横回転強打','超高速サービス','ロブ返球'],a:1,e:'チキータはバックハンドで強い横回転をかけるレシーブ技術です。'},
+      {q:'テニスで1セット取るには最低何ゲーム勝つ必要がある？',c:['4ゲーム','5ゲーム','6ゲーム','7ゲーム'],a:2,e:'通常は6ゲーム先取でセットを取ります。5-5以降は2ゲーム差がつくまで続きます。'},
+      {q:'「愛ちゃん」の愛称で知られる卓球選手は？',c:['石川佳純','平野美宇','福原愛','伊藤美誠'],a:2,e:'福原愛選手は幼い頃から活躍し「愛ちゃん」の愛称で親しまれました。'},
+    ]
+  },
+  {
+    id:'s5', title:'オリンピック', emoji:'🏅', diff:3,
+    questions:[
+      {q:'近代オリンピックが初めて開催された年と都市は？',c:['1892年ロンドン','1896年アテネ','1900年パリ','1904年セントルイス'],a:1,e:'近代オリンピックは1896年にギリシャのアテネで第1回大会が開催されました。'},
+      {q:'オリンピックの五輪のカラーで「青」が表す大陸は？',c:['ヨーロッパ','アジア','アフリカ','オセアニア'],a:0,e:'青はヨーロッパ。黄色はアジア、黒はアフリカ、緑はオセアニア、赤はアメリカです。'},
+      {q:'東京オリンピックが初めて開催された年は？',c:['1960年','1964年','1968年','1972年'],a:1,e:'1964年にアジア初のオリンピックとして東京で開催されました。'},
+      {q:'オリンピックのモットー「より速く、より高く、より強く」のラテン語は？',c:['Citius, Altius, Fortius','Fides, Spes, Caritas','Omnia, Vincit, Amor','Veni, Vidi, Vici'],a:0,e:'「Citius, Altius, Fortius」。2021年に「Communiter（共に）」が追加されました。'},
+      {q:'2024年夏季オリンピックの開催都市は？',c:['ロサンゼルス','ブリスベン','パリ','ローマ'],a:2,e:'2024年夏季五輪はフランスのパリ。1900年・1924年に続き3回目の開催でした。'},
+      {q:'冬季オリンピックが夏季と別に開催されるようになったのはいつから？',c:['1924年','1936年','1948年','1952年'],a:0,e:'1924年にフランスのシャモニーで冬季オリンピックが初めて独立開催されました。'},
+      {q:'オリンピックで最も多くのメダルを獲得した国は（歴代総合）？',c:['ロシア','ドイツ','アメリカ','中国'],a:2,e:'アメリカが夏季・冬季合わせた歴代メダル数・金メダル数ともに最多です。'},
+      {q:'オリンピックの聖火リレーはどこから始まる？',c:['開催国の首都','ギリシャのオリンピア','アテネのアクロポリス','前回の開催都市'],a:1,e:'聖火は古代五輪の発祥地・ギリシャのオリンピアで採火され、開催地へ届けられます。'},
+      {q:'パラリンピックが正式にオリンピック後に開催されるようになったのは？',c:['1960年','1968年','1976年','1988年'],a:3,e:'1988年ソウル大会から同じ都市・施設での開催形式が正式化されました。'},
+      {q:'オリンピック史上最多の金メダルを個人で獲得した選手は？',c:['ウサイン・ボルト','マイケル・フェルプス','カール・ルイス','ラリッサ・ラチニナ'],a:1,e:'マイケル・フェルプス（水泳・米）は金メダル23個・総メダル28個とオリンピック史上最多。'},
+    ]
+  },
+  {
+    id:'s6', title:'スポーツ総合', emoji:'🥇', diff:3,
+    questions:[
+      {q:'ラグビーでトライは何点？',c:['3点','4点','5点','7点'],a:2,e:'ラグビーのトライは5点。その後のコンバージョンキック成功でさらに2点が加算されます。'},
+      {q:'ゴルフでパーより1打少ない場合を何という？',c:['イーグル','バーディー','パー','ボギー'],a:1,e:'バーディーはパー（基準打数）より1打少ない状態。2打少ないとイーグルです。'},
+      {q:'水泳の4泳法に含まれないのは？',c:['自由形','バタフライ','サイドストローク','平泳ぎ'],a:2,e:'競泳の4泳法は自由形・背泳ぎ・平泳ぎ・バタフライです。'},
+      {q:'マラソンの距離は約何km？',c:['40km','42.195km','44km','45km'],a:1,e:'マラソンの正式距離は42.195km。1908年ロンドン五輪でこの距離が確定しました。'},
+      {q:'バレーボールの1チームのコート上の選手数は？',c:['5人','6人','7人','8人'],a:1,e:'バレーボールは1チーム6人でプレー。リベロという守備専門選手がいます。'},
+      {q:'陸上100m世界記録保持者は（2024年時点）？',c:['ウサイン・ボルト','タイソン・ゲイ','ノア・ライルズ','ヨハン・ブレイク'],a:0,e:'ウサイン・ボルト（ジャマイカ）が2009年に記録した9秒58が2024年時点でも世界記録です。'},
+      {q:'相撲の最高位は？',c:['大関','横綱','関脇','小結'],a:1,e:'相撲の番付最高位は横綱。一度昇進したら降格がなく、成績不振の場合は引退が求められます。'},
+      {q:'フィギュアスケートで4回転ジャンプを最初に成功させたのは？',c:['羽生結弦','ブライアン・ボイタノ','カート・ブラウニング','エフゲニー・プルシェンコ'],a:2,e:'カナダのカート・ブラウニングが1988年の世界選手権で4回転ジャンプを初めて成功させました。'},
+      {q:'ボクシングで試合時間は1ラウンド何分？',c:['2分','3分','4分','5分'],a:1,e:'プロボクシングは1ラウンド3分。アマチュア（五輪）は3分×3ラウンド制です。'},
+      {q:'Fリーグはどのスポーツのリーグ？',c:['フェンシング','フットサル','フリースタイルスキー','フットボール'],a:1,e:'Fリーグは日本のフットサルのトップリーグ。2007年に設立されました。'},
+    ]
+  },
+];
+
+const LABELS = ['A','B','C','D'];
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+let state = {
+  stageIndex: 0,
+  qIndex: 0,
+  score: 0,
+  answered: false,
+};
+
+function getProgress() {
+  try { return JSON.parse(localStorage.getItem('sqProgress') || '{}'); } catch { return {}; }
+}
+function saveProgress(stageId, score, stars) {
+  const p = getProgress();
+  if (!p[stageId] || score > (p[stageId].best || 0)) p[stageId] = { best: score, stars };
+  else if (stars > (p[stageId].stars || 0)) p[stageId].stars = stars;
+  localStorage.setItem('sqProgress', JSON.stringify(p));
+}
+function calcStars(score, total) {
+  const r = score / total;
+  if (r >= 1) return 3;
+  if (r >= 0.7) return 2;
+  if (r >= 0.5) return 1;
+  return 0;
+}
+function isUnlocked(i) {
+  if (i === 0) return true;
+  const p = getProgress();
+  return !!(p[STAGES[i-1].id]?.stars > 0);
+}
+
+// ═══════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+}
+
+// ── HOME ──
+function renderHome() {
+  const p = getProgress();
+  let cleared=0, correct=0, totalStars=0;
+  STAGES.forEach(s => {
+    if (p[s.id]) {
+      if (p[s.id].stars > 0) cleared++;
+      correct += p[s.id].best || 0;
+      totalStars += p[s.id].stars || 0;
+    }
+  });
+  document.getElementById('stat-cleared').textContent = `${cleared}/${STAGES.length}`;
+  document.getElementById('stat-correct').textContent = correct;
+  document.getElementById('stat-stars').textContent = totalStars;
+
+  const grid = document.getElementById('stage-grid');
+  grid.innerHTML = '';
+  STAGES.forEach((s, i) => {
+    const unlocked = isUnlocked(i);
+    const prog = p[s.id] || {};
+    const stars = prog.stars || 0;
+    const cleared2 = stars > 0;
+
+    const card = document.createElement('div');
+    card.className = 'stage-card' + (unlocked?'':' locked') + (cleared2?' cleared':'');
+    card.innerHTML = `
+      <span class="stage-emoji">${s.emoji}</span>
+      <div class="stage-name">${s.title}</div>
+      <div class="diff-dots">
+        ${[0,1,2].map(d=>`<div class="diff-dot${d<s.diff?' on':''}"></div>`).join('')}
+      </div>
+      <div class="stage-stars">
+        ${[0,1,2].map(d=>`<span class="s-star${d<stars?' lit':''}">★</span>`).join('')}
+      </div>
+      ${!unlocked?'<div class="lock-icon">🔒</div>':''}
+      ${cleared2?'<div class="cleared-badge">CLEAR</div>':''}
+    `;
+    if (unlocked) card.onclick = () => startStage(i);
+    grid.appendChild(card);
+  });
+  showScreen('home');
+}
+
+// ── QUIZ ──
+function startStage(i) {
+  state.stageIndex = i;
+  state.qIndex = 0;
+  state.score = 0;
+  state.answered = false;
+  renderQuestion();
+  showScreen('quiz');
+}
+
+function renderQuestion() {
+  const stage = STAGES[state.stageIndex];
+  const q = stage.questions[state.qIndex];
+  const total = stage.questions.length;
+
+  document.getElementById('quiz-stage-name').textContent = stage.emoji + ' ' + stage.title;
+  document.getElementById('quiz-score').textContent = state.score + '点';
+  document.getElementById('progress-fill').style.width = ((state.qIndex)/total*100)+'%';
+  document.getElementById('q-counter').textContent = `Q${state.qIndex+1} / ${total}`;
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('explanation').innerHTML = '';
+  document.getElementById('next-btn').style.display = 'none';
+
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  q.c.forEach((c, ci) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = `<span class="choice-label">${LABELS[ci]}</span>${c}`;
+    btn.onclick = () => selectAnswer(ci);
+    choicesEl.appendChild(btn);
+  });
+  state.answered = false;
+}
+
+function selectAnswer(selected) {
+  if (state.answered) return;
+  state.answered = true;
+
+  const stage = STAGES[state.stageIndex];
+  const q = stage.questions[state.qIndex];
+  const correct = selected === q.a;
+  if (correct) state.score++;
+
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.a) btn.classList.add('correct');
+    else if (i === selected && !correct) btn.classList.add('wrong');
+    else btn.classList.add('dim');
+  });
+
+  const expl = document.getElementById('explanation');
+  expl.innerHTML = `
+    <div class="explanation ${correct?'ok':'ng'}">
+      <div class="expl-head">${correct?'✅ 正解！':'❌ 不正解'}</div>
+      ${q.e}
+    </div>
+  `;
+
+  const nextBtn = document.getElementById('next-btn');
+  nextBtn.style.display = 'block';
+  const isLast = state.qIndex >= stage.questions.length - 1;
+  nextBtn.textContent = isLast ? '結果を見る →' : '次の問題へ →';
+  document.getElementById('quiz-score').textContent = state.score + '点';
+}
+
+function nextQuestion() {
+  const stage = STAGES[state.stageIndex];
+  if (state.qIndex < stage.questions.length - 1) {
+    state.qIndex++;
+    renderQuestion();
+  } else {
+    finishStage();
+  }
+}
+
+// ── CLEAR ──
+function finishStage() {
+  const stage = STAGES[state.stageIndex];
+  const total = stage.questions.length;
+  const score = state.score;
+  const stars = calcStars(score, total);
+  const rate = Math.round(score/total*100);
+
+  saveProgress(stage.id, score, stars);
+
+  const titles = ['もう少し！','もう少し！','クリア！','パーフェクト！'];
+  const emojis = ['😤','😤','🏆','🎉'];
+
+  document.getElementById('clear-emoji').textContent = stars===3?'🎉':stars>=2?'🏆':'👊';
+  document.getElementById('clear-title').textContent = stars===3?'パーフェクト！':stars>=1?'クリア！':'もう少し！';
+  document.getElementById('clear-stage-name').textContent = stage.emoji + ' ' + stage.title;
+  document.getElementById('res-score').textContent = `${score}/${total}`;
+  document.getElementById('res-rate').textContent = `${rate}%`;
+
+  // stars animation
+  for(let i=0;i<3;i++){
+    const el = document.getElementById('star'+i);
+    el.classList.remove('lit');
+    if(i<stars){
+      setTimeout(()=>el.classList.add('lit'), 400+i*200);
+    }
+  }
+
+  if(stars===3) setTimeout(launchConfetti, 300);
+
+  showScreen('clear');
+}
+
+function retryStage() { startStage(state.stageIndex); }
+function goHome() { renderHome(); }
+
+// ── CONFETTI ──
+function launchConfetti() {
+  const wrap = document.getElementById('confetti');
+  wrap.innerHTML = '';
+  const colors = ['#00c9ff','#f5a623','#00e676','#ff5252','#fff','#a78bfa'];
+  for(let i=0;i<60;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      width:${6+Math.random()*8}px;
+      height:${10+Math.random()*8}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${1.5+Math.random()*1.5}s;
+      animation-delay:${Math.random()*0.5}s;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(), 3500);
+  }
+}
+
+// ── INIT ──
+renderHome();
+</script>
+</body>
+</html>
